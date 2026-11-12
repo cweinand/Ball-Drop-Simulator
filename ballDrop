@@ -8,25 +8,29 @@ def spawnBall(pClick):
     color = choice(colors)
     return [r, color]
 
-#def collision(ball1, ball2):
-
 def main():
+#Make the window where the balls will be dropped
     win = GraphWin("Ball Drop", 800, 600)
     win.setCoords(0, 0, 800, 600)
     win.setBackground("white")
     balls = []
+    masses = []
+    x_speeds = []
     y_speeds = []
-
-    msg = Text(Point(400, 300), "Click to drop a ball")
+    msg = Text(Point(400, 550), "Click to drop a ball")
     msg.draw(win)
-    quit = Text(Point(400, 250), "Click esc to quit")
+    quit = Text(Point(400, 500), "Click esc to quit")
     quit.draw(win)
     pClick = win.getMouse()
+
+#Spawn the ball after the window is made
     ball_attributes = spawnBall(pClick)
     ball = Circle(pClick, ball_attributes[0])
     ball.setFill(ball_attributes[1])
     ball.draw(win)
     balls.append(ball)
+    masses.append(ball_attributes[0]**3)
+    x_speeds.append(0)
     y_speeds.append(0)
     
     while True:
@@ -35,22 +39,109 @@ def main():
             break    
         sleep(0.01)
         for i in range(len(balls)):
-            y_speeds[i] -= 0.2
-            balls[i].move(0, y_speeds[i])
+            
+            #Make the balls subject to gravity and only when in air
+            if y_speeds[i] != 0 or balls[i].getCenter().getY() - balls[i].getRadius() > 0:    
+                y_speeds[i] -= 0.2
+            
+            balls[i].move(x_speeds[i], y_speeds[i])
+
+            #Apply slight air resistance and friction when moving sideways so they stop at some point
+            x_speeds[i] *= 0.995
+            if balls[i].getCenter().getY() - balls[i].getRadius() == 0:
+                x_speeds[i] *= 0.99
+            
+            #Make the balls bounce back up when hitting the ground, starting at exactly ground level
             if balls[i].getCenter().getY() - balls[i].getRadius() <= 0:
-                y_speeds[i] = -0.75*(y_speeds[i])
-                correction = balls[i].getRadius() - balls[i].getCenter().getY()
-                balls[i].move(0, correction)
-            if abs(y_speeds[i]) < 0.001:
+                y_speeds[i] *= -0.75
+                correction_y = balls[i].getRadius() - balls[i].getCenter().getY()
+                balls[i].move(0, correction_y)
+
+            #Make the balls bounce back when hitting the side walls, starting at the wall position
+            if balls[i].getCenter().getX() - balls[i].getRadius() <= 0:
+                x_speeds[i] *= -0.75
+                correction_x = balls[i].getRadius() - balls[i].getCenter().getX()
+                balls[i].move(correction_x, 0)
+            elif balls[i].getCenter().getX() + balls[i].getRadius() >= 800:
+                x_speeds[i] *= -0.75
+                correction_x = 800 - (balls[i].getCenter().getX() + balls[i].getRadius())
+                balls[i].move(correction_x, 0)
+            
+            #Make the balls stop moving when speed is too slow (virtually zero)
+            if abs(y_speeds[i]) < 0.1:
                 y_speeds[i] = 0
+            if abs(x_speeds[i]) < 0.1:
+                x_speeds[i] = 0
+
+            #Have the balls bounce off of each other when colliding
+            for j in range (i+1, len(balls)):
+                
+                #Get the distance between the balls
+                dx = balls[i].getCenter().getX() - balls[j].getCenter().getX()
+                dy = balls[i].getCenter().getY() - balls[j].getCenter().getY()
+                distance = ((dx**2)+(dy**2))**0.5
+
+                #Get the masses of the balls to account for momentum
+                total_mass = masses[i] + masses[j]
+
+                #Check if balls are lying on top of eachother and nudge them if they are
+                if abs(dx) <= 0.5:
+                    dx = choice([-3,3])
+                
+                #Check if the balls are touching
+                if distance <= (balls[i].getRadius() + balls[j].getRadius()):
+
+                    #If balls are overlapping, correct it (heavy mass moves less than light mass)
+                    correction_overlap = ((balls[i].getRadius() + balls[j].getRadius()) - distance) 
+                    unit_x = dx / distance
+                    unit_y = dy / distance
+                    balls[i].move(unit_x * correction_overlap * masses[i]/total_mass, unit_y * correction_overlap * masses[i]/total_mass)
+                    balls[j].move(-unit_x * correction_overlap * masses[j]/total_mass, -unit_y * correction_overlap * masses[j]/total_mass)
+                    
+                    #Add restitution (bounciness)
+                    e = 0.85
+                    impulse = -e / ((1/masses[i]) + (1/masses[j]))
+
+                    #Make the balls fly off in direction of impulse
+                    x_speeds[i] -= impulse * unit_x / masses[i]
+                    y_speeds[i] -= impulse * unit_y / masses[i]
+                    x_speeds[j] += impulse * unit_x / masses[j]
+                    y_speeds[j] += impulse * unit_y / masses[j]
+
+                    #Make the balls bounce off of each other vertically
+                    if balls[j].getCenter().getY() > balls[i].getCenter().getY():
+                        if y_speeds[i] > 0:  
+                            y_speeds[j] = (y_speeds[i] - y_speeds[j]) * e * masses[i] / total_mass
+                            y_speeds[i] = (y_speeds[j] - y_speeds[i]) * e * masses[j] / total_mass
+                        elif abs(y_speeds[i]) < 0.5:  
+                            y_speeds[j] = -y_speeds[j] * e * masses[i] / total_mass
+
+                    #Ensure that balls don't bounce up when rolling into each other
+                    if balls[i].getCenter().getY() - balls[i].getRadius() <= 1:
+                        y_speeds[i] = 0
+                    if balls[j].getCenter().getY() - balls[j].getRadius() <= 1:
+                        y_speeds[j] = 0
+
         pClick = win.checkMouse()
-        if pClick is not None:
+        if pClick is not None and len(balls) < 10:
             ball_attributes = spawnBall(pClick)
             ball = Circle(pClick, ball_attributes[0])
             ball.setFill(ball_attributes[1])
             ball.draw(win)
             balls.append(ball)
+            masses.append(ball_attributes[0]**3)
+            x_speeds.append(0)
             y_speeds.append(0)
+        elif len(balls) >= 10:
+            msg = Text(Point(400, 400), "Maximum number of balls reached! Please quit.")
+            msg.setStyle("bold")
+            msg.setFill("red")
+            msg.draw(win)
+
+        #Prevent repeat draws for text
+        elif msg == Text(Point(400, 400), "Maximum number of balls reached! Please quit whenever."):
+            pass
+
     win.close()
 
 if __name__ == "__main__":
