@@ -1,0 +1,57 @@
+from random import *
+from graphics import *
+from time import *
+
+def spawnBall(pClick):
+    colors = ["red", "blue", "green", "yellow", "black", "teal", "purple", "pink"]
+    r = randint(3, 12)
+    color = choice(colors)
+    return [r, color]
+
+#def collision(ball1, ball2):
+
+def main():
+    win = GraphWin("Ball Drop", 800, 600)
+    win.setCoords(0, 0, 800, 600)
+    win.setBackground("white")
+    balls = []
+    y_speeds = []
+
+    msg = Text(Point(400, 300), "Click to drop a ball")
+    msg.draw(win)
+    quit = Text(Point(400, 250), "Click esc to quit")
+    quit.draw(win)
+    pClick = win.getMouse()
+    ball_attributes = spawnBall(pClick)
+    ball = Circle(pClick, ball_attributes[0])
+    ball.setFill(ball_attributes[1])
+    ball.draw(win)
+    balls.append(ball)
+    y_speeds.append(0)
+    
+    while True:
+        key = win.checkKey()
+        if key == "Escape":
+            break    
+        sleep(0.01)
+        for i in range(len(balls)):
+            y_speeds[i] -= 0.2
+            balls[i].move(0, y_speeds[i])
+            if balls[i].getCenter().getY() - balls[i].getRadius() <= 0:
+                y_speeds[i] = -0.75*(y_speeds[i])
+                correction = balls[i].getRadius() - balls[i].getCenter().getY()
+                balls[i].move(0, correction)
+            if abs(y_speeds[i]) < 0.001:
+                y_speeds[i] = 0
+        pClick = win.checkMouse()
+        if pClick is not None:
+            ball_attributes = spawnBall(pClick)
+            ball = Circle(pClick, ball_attributes[0])
+            ball.setFill(ball_attributes[1])
+            ball.draw(win)
+            balls.append(ball)
+            y_speeds.append(0)
+    win.close()
+
+if __name__ == "__main__":
+    main()
