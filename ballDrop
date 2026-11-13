@@ -133,7 +133,7 @@ def main():
             x_speeds.append(0)
             y_speeds.append(0)
         elif len(balls) >= 10:
-            msg = Text(Point(400, 400), "Maximum number of balls reached! Please quit.")
+            msg = Text(Point(400, 400), "Maximum number of balls reached! Please quit whenever.")
             msg.setStyle("bold")
             msg.setFill("red")
             msg.draw(win)
